@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Classificador de Itens</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 24px; max-width: 600px; margin: 0 auto; }
+    h2 { margin-top: 0; }
+    input, button { width: 100%; padding: 12px; font-size: 16px; }
+    button { margin-top: 10px; cursor: pointer; }
+    .box { border: 1px solid #ddd; border-radius: 12px; padding: 16px; }
+    .resp { margin-top: 14px; font-weight: bold; }
+    .small { color: #666; font-size: 13px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>Classificador de Itens</h2>
+    <input id="pergunta" placeholder="Digite sua pergunta..." />
+    <button onclick="enviar()">Classificar</button>
+    <div id="resp" class="resp"></div>
+    <div class="small">Dica: escreva como se fosse um pedido do usuário (ex.: “preciso do item para ...”).</div>
+  </div>
+
+  <script>
+    const WEBHOOK_URL = "SUA_PRODUCTION_WEBHOOK_URL_AQUI";
+
+    async function enviar() {
+      const pergunta = document.getElementById("pergunta").value.trim();
+      const respEl = document.getElementById("resp");
+
+      if (!pergunta) {
+        respEl.textContent = "Digite uma pergunta.";
+        return;
+      }
+
+      respEl.textContent = "Consultando...";
+
+      try {
+        const r = await fetch(WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ body: pergunta })
+        });
+
+        if (!r.ok) throw new Error("HTTP " + r.status);
+
+        const data = await r.json();
+        respEl.textContent = data.resposta ?? JSON.stringify(data);
+      } catch (e) {
+        respEl.textContent = "Erro ao consultar. " + e.message;
+      }
+    }
+  </script>
+</body>
+</html>
