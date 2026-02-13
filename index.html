@@ -82,50 +82,38 @@ m<!doctype html>
       if (e.key === "Enter") enviar();
     });
 
-    async function enviar() {
-      const perguntaEl = document.getElementById("pergunta");
-      const btn = document.getElementById("btn");
-      const respEl = document.getElementById("resp");
+async function enviar() {
+  const perguntaEl = document.getElementById("pergunta");
+  const btn = document.getElementById("btn");
+  const respEl = document.getElementById("resp");
 
-      const pergunta = perguntaEl.value.trim();
+  const pergunta = perguntaEl.value.trim();
+  if (!pergunta) {
+    respEl.textContent = "Digite uma pergunta.";
+    return;
+  }
 
-      if (!pergunta) {
-        respEl.textContent = "Digite uma pergunta.";
-        return;
-      }
+  respEl.textContent = "Consultando...";
+  btn.disabled = true;
 
-      respEl.textContent = "Consultando...";
-      btn.disabled = true;
+  try {
+    const r = await fetch(WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pergunta: pergunta }) // 👈 AQUI
+    });
 
-      try {
-        const response = await fetch(WEBHOOK_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pergunta: pergunta })
- // ✅ CORRETO
-        });  
+    if (!r.ok) throw new Error("HTTP " + r.status);
 
-        if (!response.ok) {
-          throw new Error("Erro HTTP " + response.status);
-        }
+    const data = await r.json();
+    respEl.textContent = formatarResposta(data);
+  } catch (e) {
+    respEl.textContent = "Erro ao consultar. " + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
 
-        const data = await response.json();
-
-        // Espera receber:
-        // { codigo: "DSP00189", nome: "Material de higiene..." }
-
-        if (data.codigo && data.nome) {
-          respEl.textContent = `${data.codigo} - ${data.nome}`;
-        } else {
-          respEl.textContent = "Resposta inesperada: " + JSON.stringify(data);
-        }
-
-      } catch (error) {
-        respEl.textContent = "Erro ao consultar: " + error.message;
-      } finally {
-        btn.disabled = false;
-      }
-    }
   </script>
 </body>
 </html>
