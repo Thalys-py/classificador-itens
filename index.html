@@ -1,4 +1,4 @@
-m<!doctype html>
+<!doctype html>
 <html lang="pt-br">
 <head>
   <meta charset="utf-8" />
@@ -14,9 +14,7 @@ m<!doctype html>
       background: #f5f5f5;
     }
 
-    h2 {
-      margin-top: 0;
-    }
+    h2 { margin-top: 0; }
 
     input, button {
       width: 100%;
@@ -24,6 +22,7 @@ m<!doctype html>
       font-size: 16px;
       border-radius: 8px;
       border: 1px solid #ccc;
+      box-sizing: border-box;
     }
 
     button {
@@ -34,9 +33,7 @@ m<!doctype html>
       border: none;
     }
 
-    button:hover {
-      opacity: 0.9;
-    }
+    button:hover { opacity: 0.9; }
 
     .box {
       background: white;
@@ -74,7 +71,7 @@ m<!doctype html>
   </div>
 
   <script>
-    // 🔥 USE SUA URL DE PRODUÇÃO AQUI
+    // ✅ URL DE PRODUÇÃO
     const WEBHOOK_URL = "https://thalysmoschen.app.n8n.cloud/webhook/classificador-itens";
 
     // Enter para enviar
@@ -82,38 +79,65 @@ m<!doctype html>
       if (e.key === "Enter") enviar();
     });
 
-async function enviar() {
-  const perguntaEl = document.getElementById("pergunta");
-  const btn = document.getElementById("btn");
-  const respEl = document.getElementById("resp");
+    function formatarResposta(data) {
+      if (!data) return "Sem resposta.";
 
-  const pergunta = perguntaEl.value.trim();
-  if (!pergunta) {
-    respEl.textContent = "Digite uma pergunta.";
-    return;
-  }
+      // Esperado do n8n: { "codigo": "...", "nome": "..." }
+      const codigo = data.codigo || data.ItemCodigo || data.itemCodigo;
+      const nome = data.nome || data.descricao || data.ItemDescricao || data.itemDescricao;
 
-  respEl.textContent = "Consultando...";
-  btn.disabled = true;
+      if (codigo && nome) return `${codigo} - ${nome}`;
+      if (codigo) return String(codigo);
 
-  try {
-    const r = await fetch(WEBHOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pergunta: pergunta }) // 👈 AQUI
-    });
+      // Se veio string (às vezes o node devolve texto)
+      if (typeof data === "string") {
+        const txt = data.trim();
+        try {
+          const obj = JSON.parse(txt);
+          const c = obj.codigo || obj.ItemCodigo || obj.itemCodigo;
+          const n = obj.nome || obj.descricao || obj.ItemDescricao || obj.itemDescricao;
+          if (c && n) return `${c} - ${n}`;
+          if (c) return String(c);
+          return JSON.stringify(obj);
+        } catch {
+          return txt;
+        }
+      }
 
-    if (!r.ok) throw new Error("HTTP " + r.status);
+      return JSON.stringify(data);
+    }
 
-    const data = await r.json();
-    respEl.textContent = formatarResposta(data);
-  } catch (e) {
-    respEl.textContent = "Erro ao consultar. " + e.message;
-  } finally {
-    btn.disabled = false;
-  }
-}
+    async function enviar() {
+      const perguntaEl = document.getElementById("pergunta");
+      const btn = document.getElementById("btn");
+      const respEl = document.getElementById("resp");
 
+      const pergunta = perguntaEl.value.trim();
+      if (!pergunta) {
+        respEl.textContent = "Digite uma pergunta.";
+        return;
+      }
+
+      respEl.textContent = "Consultando...";
+      btn.disabled = true;
+
+      try {
+        const r = await fetch(WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pergunta: pergunta })
+        });
+
+        if (!r.ok) throw new Error("HTTP " + r.status);
+
+        const data = await r.json();
+        respEl.textContent = formatarResposta(data);
+      } catch (e) {
+        respEl.textContent = "Erro ao consultar. " + e.message;
+      } finally {
+        btn.disabled = false;
+      }
+    }
   </script>
 </body>
 </html>
