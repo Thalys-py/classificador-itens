@@ -4,16 +4,62 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Classificador de Itens</title>
+
   <style>
-    body { font-family: Arial, sans-serif; padding: 24px; max-width: 600px; margin: 0 auto; }
-    h2 { margin-top: 0; }
-    input, button { width: 100%; padding: 12px; font-size: 16px; }
-    button { margin-top: 10px; cursor: pointer; }
-    .box { border: 1px solid #ddd; border-radius: 12px; padding: 16px; }
-    .resp { margin-top: 14px; font-weight: bold; white-space: pre-wrap; }
-    .small { color: #666; font-size: 13px; margin-top: 8px; }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 24px;
+      max-width: 600px;
+      margin: 0 auto;
+      background: #f5f5f5;
+    }
+
+    h2 {
+      margin-top: 0;
+    }
+
+    input, button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      margin-top: 10px;
+      cursor: pointer;
+      background: #2d6cdf;
+      color: white;
+      border: none;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .box {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }
+
+    .resp {
+      margin-top: 14px;
+      font-weight: bold;
+      white-space: pre-wrap;
+      font-size: 16px;
+    }
+
+    .small {
+      color: #666;
+      font-size: 13px;
+      margin-top: 8px;
+    }
   </style>
 </head>
+
 <body>
   <div class="box">
     <h2>Classificador de Itens</h2>
@@ -22,10 +68,13 @@
     <button id="btn" onclick="enviar()">Classificar</button>
 
     <div id="resp" class="resp"></div>
-    <div class="small">Dica: escreva como se fosse um pedido do usuário (ex.: “preciso do item para ...”).</div>
+    <div class="small">
+      Dica: escreva como se fosse um pedido do usuário (ex.: “preciso de material de limpeza para escritório”).
+    </div>
   </div>
 
   <script>
+    // 🔥 USE SUA URL DE PRODUÇÃO AQUI
     const WEBHOOK_URL = "https://thalysmoschen.app.n8n.cloud/webhook/classificador-itens";
 
     // Enter para enviar
@@ -33,54 +82,13 @@
       if (e.key === "Enter") enviar();
     });
 
-    function formatarResposta(data) {
-      // Caso 1: n8n devolve { resposta: "..." }
-      const r = (data && typeof data === "object" && "resposta" in data) ? data.resposta : data;
-
-      // Se veio null/undefined
-      if (r === null || r === undefined) return "Sem resposta.";
-
-      // Caso 2: resposta já é objeto JSON (ex.: {codigo:"...", nome:"..."})
-      if (typeof r === "object") {
-        const codigo = r.codigo || r.ItemCodigo || r.itemCodigo;
-        const nome = r.nome || r.descricao || r.ItemDescricao || r.itemDescricao;
-        if (codigo && nome) return `${codigo} - ${nome}`;
-        if (codigo) return String(codigo);
-        return JSON.stringify(r);
-      }
-
-      // Caso 3: resposta é texto, mas pode ser JSON em string
-      if (typeof r === "string") {
-        const txt = r.trim();
-
-        // Se for JSON como texto, tenta parsear
-        if ((txt.startsWith("{") && txt.endsWith("}")) || (txt.startsWith("[") && txt.endsWith("]"))) {
-          try {
-            const obj = JSON.parse(txt);
-            const codigo = obj.codigo || obj.ItemCodigo || obj.itemCodigo;
-            const nome = obj.nome || obj.descricao || obj.ItemDescricao || obj.itemDescricao;
-            if (codigo && nome) return `${codigo} - ${nome}`;
-            if (codigo) return String(codigo);
-            return JSON.stringify(obj);
-          } catch {
-            // se falhar, mostra o texto mesmo
-          }
-        }
-
-        // Se for só um código, mostra limpo
-        return txt;
-      }
-
-      // Caso 4: qualquer outro tipo
-      return String(r);
-    }
-
     async function enviar() {
       const perguntaEl = document.getElementById("pergunta");
       const btn = document.getElementById("btn");
       const respEl = document.getElementById("resp");
 
       const pergunta = perguntaEl.value.trim();
+
       if (!pergunta) {
         respEl.textContent = "Digite uma pergunta.";
         return;
@@ -90,18 +98,29 @@
       btn.disabled = true;
 
       try {
-        const r = await fetch(WEBHOOK_URL, {
+        const response = await fetch(WEBHOOK_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ body: pergunta })
+          body: JSON.stringify({ pergunta }) // ✅ CORRETO
         });
 
-        if (!r.ok) throw new Error("HTTP " + r.status);
+        if (!response.ok) {
+          throw new Error("Erro HTTP " + response.status);
+        }
 
-        const data = await r.json();
-        respEl.textContent = formatarResposta(data);
-      } catch (e) {
-        respEl.textContent = "Erro ao consultar. " + e.message;
+        const data = await response.json();
+
+        // Espera receber:
+        // { codigo: "DSP00189", nome: "Material de higiene..." }
+
+        if (data.codigo && data.nome) {
+          respEl.textContent = `${data.codigo} - ${data.nome}`;
+        } else {
+          respEl.textContent = "Resposta inesperada: " + JSON.stringify(data);
+        }
+
+      } catch (error) {
+        respEl.textContent = "Erro ao consultar: " + error.message;
       } finally {
         btn.disabled = false;
       }
